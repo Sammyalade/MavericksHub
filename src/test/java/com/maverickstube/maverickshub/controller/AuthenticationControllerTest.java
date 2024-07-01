@@ -1,5 +1,6 @@
 package com.maverickstube.maverickshub.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maverickstube.maverickshub.dtos.request.LoginRequest;
 import org.junit.jupiter.api.Test;
@@ -32,4 +33,18 @@ public class AuthenticationControllerTest {
                 .andExpect(status().isOk())
                 .andDo(print());
     }
+
+    @Test
+    public void testThatAuthenticationFailsForIncorrectOrInvalidCredentials() throws Exception {
+        LoginRequest request = new LoginRequest();
+        request.setUsername("johndoe@gmail.com");
+        request.setPassword("passworrrd");
+        ObjectMapper mapper = new ObjectMapper();
+        mockMvc.perform(post("/api/v1/auth")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsBytes(request)))
+                .andExpect(status().isUnauthorized())
+                .andDo(print());
+    }
+
 }

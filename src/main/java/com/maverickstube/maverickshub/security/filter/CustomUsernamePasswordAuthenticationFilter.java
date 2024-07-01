@@ -24,6 +24,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,14 +63,28 @@ public class CustomUsernamePasswordAuthenticationFilter extends UsernamePassword
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response,
                                             FilterChain chain, Authentication authResult)
             throws IOException, ServletException {
-        String token = JWT.create()
-                .withIssuer("MavericksHub")
-                .withArrayClaim("roles", getClaimsFrom(authResult.getAuthorities()))
-                .sign(Algorithm.HMAC512("secret"));
-        Map<String, String> res = new HashMap<>();
-        res.put("access_token", token);
-        response.getOutputStream().write(mapper.writeValueAsBytes(res));
+
+        LoginResponse loginResponse = new LoginResponse();
+        loginResponse.setToken(generateAccessToken(authResult));
+        loginResponse.setMessage("Successful Authentication");
+        BaseResponse<LoginResponse> baseResponse = new BaseResponse<>();
+        baseResponse.setData(loginResponse);
+        baseResponse.setCode(HttpStatus.OK.value());
+        baseResponse.setStatus(true);
+
+        response.getOutputStream().write(mapper.writeValueAsBytes(baseResponse));
         response.flushBuffer();
+        chain.doFilter(request, response);
+    }
+
+    private static String generateAccessToken(Authentication authResult) {
+        return JWT.create()
+                .withIssuer("MavericksHub")
+                .withArrayClaim("roles",
+                        getClaimsFrom(authResult.getAuthorities()))
+                .withExpiresAt(Instant.now()
+                        .plusSeconds(24*60*60))
+                .sign(Algorithm.HMAC512("secret"));
     }
 
     private static String[] getClaimsFrom(Collection<? extends GrantedAuthority> authorities) {
@@ -81,12 +96,16 @@ public class CustomUsernamePasswordAuthenticationFilter extends UsernamePassword
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request,
                                               HttpServletResponse response,
-                                              AuthenticationException failed) throws IOException, ServletException {
+                                              AuthenticationException exception) throws IOException, ServletException {
         LoginResponse loginResponse = new LoginResponse();
-        loginResponse.setMessage(failed.getMessage());
+        loginResponse.setMessage(exception.getMessage());
         BaseResponse<LoginResponse> baseResponse = new BaseResponse<>();
         baseResponse.setData(loginResponse);
         baseResponse.setStatus(false);
         baseResponse.setCode(HttpStatus.UNAUTHORIZED.value());
+
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.getOutputStream().write(mapper.writeValueAsBytes(baseResponse));
+        response.flushBuffer();
     }
 }

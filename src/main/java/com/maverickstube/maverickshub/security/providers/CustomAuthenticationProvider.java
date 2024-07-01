@@ -27,6 +27,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             return new UsernamePasswordAuthenticationToken
                     (null, null, userDetails.getAuthorities());
         }
+        //TODO: REFACTOR THIS
         throw new BadCredentialsException("Bad credentials");
     }
 
